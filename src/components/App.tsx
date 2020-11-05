@@ -41,9 +41,9 @@ const App: React.FC = () => {
 
   const handleProvider = React.useCallback(async (cpk: CPK, provider: providers.Provider, signer: Signer) => {
     setProvider(provider)
-    configureCpk(cpk, signer)
+    await configureCpk(cpk, signer)
     setWalletState({
-      account: await cpk.getOwnerAccount()
+      account: cpk.address
     })
   }, [setProvider, setWalletState])
 
