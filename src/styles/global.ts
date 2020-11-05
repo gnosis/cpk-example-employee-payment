@@ -36,6 +36,10 @@ const GlobalStyles = createGlobalStyle`
   a {
     color: #008c73;
   }
+
+  .address p {
+    font-family: 'Roboto', monospace;
+  }
 `
 
 export default GlobalStyles

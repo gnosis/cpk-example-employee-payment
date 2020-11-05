@@ -9,7 +9,8 @@ export const configureCpk = async (cpk: CPK, signer: Signer): Promise<void> => {
     const ethLibAdapter = new EthersAdapter({ ethers, signer })
     cpk.setNetworks(defaultNetworks)
     cpk.setEthLibAdapter(ethLibAdapter)
-    if (!cpk.isSafeApp())
+    if (!cpk.isSafeApp()) {
         cpk.setTransactionManager(new CpkTransactionManager())
+    }
     await cpk.init()
 }
