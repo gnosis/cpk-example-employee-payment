@@ -93,7 +93,7 @@ const App: React.FC = () => {
   return (
     <SAppContainer>
       <img src={SafeLogo} alt="Gnosis Safe Logo" width="100"></img>
-      <SHeading>Safe Contract Proxy Kit Exployee Payment</SHeading>
+      <SHeading>Safe Contract Proxy Kit Employee Payment</SHeading>
       {walletState.account && proxyKit ? (
         <div>
           <WalletInfo address={walletState.account!} />
