@@ -5,10 +5,9 @@ import ConnectButton from 'src/components/ConnectButton'
 import WalletInfo from 'src/components/WalletInfo'
 import { configureCpk, timeout } from 'src/utils/cpk'
 import styled from 'styled-components'
-import { providers, Signer, utils, BigNumber, Contract } from 'ethers'
+import { providers, Signer, utils, BigNumber } from 'ethers'
 import { rpcUrl } from 'src/utils/config'
 import { Button } from '@gnosis.pm/safe-react-components'
-import { legos } from "@studydefi/money-legos";
 
 const SAppContainer = styled.main`
   display: flex;
@@ -32,22 +31,15 @@ const initialWalletState = {
   account: undefined
 }
 
-const paymentToken = legos.erc20.dai
-const tokenInterface = Contract.getInterface(paymentToken.abi)
-
 const App: React.FC = () => {
+  const [walletState, setWalletState] = React.useState<IWalletState>(initialWalletState)
   const [loading, setLoading] = React.useState<boolean>(true)
-  const [, setProvider] = React.useState<providers.Provider | undefined>(undefined)
+  const [provider, setProvider] = React.useState<providers.Provider | undefined>(undefined)
   const [proxyKit, setProxyKit] = React.useState<CPK | undefined>(undefined)
-  const [walletState, setWalletState] = React.useState<IWalletState>(
-    initialWalletState
-  )
 
   const handleProvider = React.useCallback(async (cpk: CPK, provider: providers.Provider, signer: Signer) => {
     setProvider(provider)
-    console.log(cpk.address)
     await configureCpk(cpk, signer)
-    console.log(cpk.address)
     setWalletState({
       account: cpk.address
     })
@@ -79,6 +71,24 @@ const App: React.FC = () => {
     setupProxyKit()
   }, [proxyKit, setProxyKit, handleProvider, setLoading])
 
+  // Load Balance
+  const [balance, setBalance] = React.useState<BigNumber | undefined>(undefined)
+  useEffect(() => {
+    let canceled = false
+    const updateBalance = async () => {
+      if (proxyKit && proxyKit.address) {
+        try {
+          setBalance(await provider?.getBalance(proxyKit.address))
+        } catch (e) { }
+      }
+      if (!canceled) setTimeout(updateBalance, 5000)
+    }
+    updateBalance()
+    return () => {
+      canceled = true
+    }
+  }, [proxyKit, provider, setBalance])
+
   // Tx creation logic
   const [amount, setAmount] = React.useState<BigNumber | undefined>(undefined)
   const [receivers, setReceivers] = React.useState<string[]>([])
@@ -89,10 +99,8 @@ const App: React.FC = () => {
       const reader = new FileReader()
       reader.onload = (e) => {
         if (!e.target?.result) return;
-        console.log(typeof e.target.result)
-        console.log(e.target.result)
         const data = JSON.parse(e.target.result.toString())
-        setAmount(BigNumber.from(data.amount))
+        setAmount(utils.parseEther(data.amount))
         setReceivers(data.receivers.map((receiver: string) => utils.getAddress(receiver)))
       }
       reader.readAsBinaryString(file)
@@ -107,9 +115,8 @@ const App: React.FC = () => {
       console.log(await proxyKit.execTransactions(
         receivers.map(receiver => {
           return {
-            to: paymentToken.address,
-            value: 0,
-            data: tokenInterface.encodeFunctionData("transfer", [receiver, amount])
+            to: receiver,
+            value: amount.toString()
           }
         })
       ))
@@ -123,10 +130,16 @@ const App: React.FC = () => {
     return (<div>Loading</div>)
   }
   if (amount && receivers.length > 0) {
+    const requiredFunds = amount.mul(receivers.length);
+    const disabled = balance ? balance.lt(requiredFunds) : true;
     return (<SAppContainer>
-      <SHeading>Send {utils.formatUnits(amount, paymentToken.decimals)} {paymentToken.symbol} to:</SHeading>
+      <SHeading>Send {utils.formatEther(amount)} ETH to:</SHeading>
       { receivers.map(receiver => (<WalletInfo address={receiver} />))}
-      <Button color="primary" size="lg" onClick={sendTx}>Send</Button>
+      <p>from</p>
+      <WalletInfo address={walletState.account!} />
+      <p>Total required funds {utils.formatEther(requiredFunds)} ETH</p>
+      { balance ? (<>Current Safe balance: {utils.formatEther(balance)} ETH </>) : (<>Loading balance ...</>)}
+      <Button color="primary" size="lg" onClick={sendTx} disabled={disabled}>Send</Button>
     </SAppContainer>
     )
   }
